@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 use std::io::{Read,Write};
-use openssl::ssl::{SslMethod, SslConnectorBuilder};
+use openssl::ssl::{SslMethod, SslConnector};
 use std::time::Duration;
 use std::io;
 use std::net::{Ipv4Addr,ToSocketAddrs,TcpListener,TcpStream};
@@ -14,16 +14,17 @@ struct Cli{
     
 }
 fn get( url : &str)->io::Result<()>{
-    let connector = SslConnectorBuilder::new(SslMethod::tls()).unwrap().build();
+    let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
     let full_addr = format!("{}:443",url);    
     let stream = TcpStream::connect(&full_addr).unwrap();
-    let mut stream = connector.connect(&url,stream);
+    let mut stream = connector.connect(&url,stream).unwrap();
     print!("{:?}",stream);
     let mut request_data = String::new();
     let req_body = format!("GET / HTTP/1.1\r\nHost: {}\r\nConnection:close\r\n\r\n",url).to_string();
+    //request_data.push_str("GET / HTTP/1.0\r\n\r\n");
     request_data.push_str(&req_body);        
     println!("Request \n-------- \n{:?} \n--------", request_data);
-    let request = stream.write_all(request_data.as_bytes())?;
+    let request = stream.write_all(request_data.as_bytes()).unwrap();
     println!("request \n-------- \n {:?} \n--------", request);
     let mut buf = String::new();
     let result = stream.read_to_string(&mut buf)?;

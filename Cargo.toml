@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 structopt = { version = "0.3", default-features = true }
 openssl = "0.10.30"
+openssl-sys="0.9"
