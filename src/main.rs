@@ -1,16 +1,19 @@
+extern crate rustls;
 use structopt::StructOpt;
 use std::io::{Read,Write};
-use openssl::ssl::{SslMethod, SslConnector};
 use std::time;
+use webpki;
+use webpki_roots;
 use std::io;
 use std::net::{Ipv4Addr,ToSocketAddrs,TcpListener,TcpStream};
 use regex::Regex;
 use std::convert::TryFrom;
+use rustls::Session;
 
 #[derive(Debug,StructOpt)]
 #[structopt(name = "Profiler System", about = "req")]
 struct Cli{ 
-    #[structopt(short="u",long ="url",help="The tool will make an HTTP request to the URL and print the response directly to the console",default_value ="google.com")] 
+    #[structopt(short="u",long ="url",help="The tool will make an HTTP request to the URL and print the response directly to the console",default_value ="www.google.com")] 
     url: String,
     #[structopt(short="p",long="profile",help="Number of times the request will be sent to the URL",default_value = "3")]
     profile: u8    
@@ -22,10 +25,15 @@ struct Response{
 }
 fn send_request( url : &str)->Result<Response,Box<dyn std::error::Error>>{
     //This function send request to url and returns Response Struct 
-    let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+    
     let full_addr = format!("{}:443",url);    
-    let stream = TcpStream::connect(&full_addr).unwrap();
-    let mut stream = connector.connect(&url,stream).unwrap();
+    let mut socket = TcpStream::connect(&full_addr).unwrap();
+    let mut config = rustls::ClientConfig::new();
+    config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+    let arc = std::sync::Arc::new(config);
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(url).unwrap();
+    let mut client = rustls::ClientSession::new(&arc,dns_name);
+    let mut stream = rustls::Stream::new(&mut client,&mut socket);
     let mut request_data = String::new();
     let req_body = format!("GET / HTTP/1.1\r\nHost: {}\r\nConnection:close\r\n\r\n",url).to_string();
     request_data.push_str(&req_body);        
